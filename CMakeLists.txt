@@ -15,6 +15,7 @@ add_executable(ataraxia
     src/shader.h
     src/stb_image.cpp
     src/config.h
+    src/camera.h
 )
 
 target_link_libraries(ataraxia PRIVATE
