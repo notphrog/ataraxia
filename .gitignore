@@ -1,0 +1,28 @@
+# build directories
+build/
+cmake-build-*/
+out/
+
+# bmpiled binaries and objects
+*.o
+*.obj
+*.exe
+*.out
+*.app
+*.dll
+*.so
+*.dylib
+
+# ide and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# compile commands (included as to not share local paths)
+compile_commands.json
+
+# os generated files
+Thumbs.db
