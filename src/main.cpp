@@ -42,6 +42,13 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
 }
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
+
+    if (firstMouse) {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
+    }
+
     float xoffset = xpos - lastX;
     float yoffset = lastY - ypos;
     lastX = xpos;
@@ -61,8 +68,22 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     if (pitch < -89.0f) {
         pitch = -89.0f;
     }
+
+    glm::vec3 direction;
+    direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    direction.y = sin(glm::radians(pitch));
+    direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    cameraFront = glm::normalize(direction);
 }
-void scroll_callback(GLFWwindow* window, double xpos, double ypos);
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+    fov -= (float)yoffset;
+    if (fov < 1.0f) {
+        fov = 1.0f;
+    }
+    if (fov > 45.0f) {
+        fov = 45.0f;
+    }
+}
 
 // just a helper function to assist not having 255 scale
 
@@ -248,7 +269,7 @@ int main()
 
 
     glm::mat4 projection;
-    projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 100.0f);
+    projection = glm::perspective(glm::radians(fov), 800.0f / 600.0f, 0.1f, 100.0f); 
 
 
     glm::vec3 cubePositions[] = {
@@ -294,10 +315,9 @@ int main()
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f));
 
+        // ! HERE HERE HERE
         glm::vec3 direction;
-        direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-        direction.y = sin(glm::radians(pitch));
-        direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+        
         
 
         const float radius = 10.0f;
