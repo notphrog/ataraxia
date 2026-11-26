@@ -24,18 +24,11 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 
 unsigned int loadTexture();
 
-glm::vec3 cameraPos =   glm::vec3(0.0f, 0.0f, 3.0f);
-glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-glm::vec3 cameraUp    = glm::vec3(0.0f, 1.0f,  0.0f);
-
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 
 bool firstMouse = true;
-float yaw = -90.0f;
-float pitch = 0.0f;
-float lastX = SCR_WIDTH / 2.0;
-float lastY = SCR_HEIGHT / 2.0;
-float fov = 45.0f;
+float lastX = SCR_WIDTH / 2.0f;
+float lastY = SCR_HEIGHT / 2.0f;
 
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
@@ -60,15 +53,15 @@ void processInput(GLFWwindow *window) {
         setClearColor(53, 77, 77, 1.0f);
     }
 
-    const float cameraSpeed = 2.5f * deltaTime; // adjust accordingly
+    // now we let the Camera class handle the movement math
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        cameraPos += cameraSpeed * cameraFront;
+        camera.ProcessKeyboard(FORWARD, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        cameraPos -= cameraSpeed * cameraFront;
+        camera.ProcessKeyboard(BACKWARD, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        camera.ProcessKeyboard(RIGHT, deltaTime);
 }
 
 
@@ -201,32 +194,10 @@ int main()
     #pragma endregion
 
 
-
-    
-
     unsigned int texture = loadTexture();
 
     ourShader.use();
     ourShader.setInt("ourTexture", 0);
-
-    unsigned int transformLoc = glGetUniformLocation(ourShader.ID, "transform");
-    
-
-    glm::mat4 trans = glm::mat4(1.0f);
-    trans = glm::rotate(trans, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    trans = glm::scale(trans, glm::vec3(0.5f, 0.5f, 0.5f));
-
-
-    glm::mat4 model = glm::mat4(1.0f);
-    model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-
-
-    glm::mat4 view = glm::mat4(1.0f);
-    view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-
-
-    glm::mat4 projection;
-    projection = glm::perspective(glm::radians(fov), 800.0f / 600.0f, 0.1f, 100.0f); 
 
 
     glm::vec3 cubePositions[] = {
@@ -243,15 +214,6 @@ int main()
     };
 // not used unless the for loop in the render loop is enabled ^
 
-
-    
-    glm::vec3 cameraTarget =       glm::vec3(0.0f, 0.0f, 0.0f);
-    glm::vec3 cameraDirection =    glm::normalize(cameraPos - cameraTarget);
-    glm::vec3 up =                 glm::vec3(0.0f, 1.0f, 0.0f); 
-    glm::vec3 cameraRight =        glm::normalize(glm::cross(up, cameraDirection));
-    // glm::vec3 cameraUp =           glm::cross(cameraDirection, cameraRight);
-
-
     glEnable(GL_DEPTH_TEST); 
     // ? start of main loop
     while (!glfwWindowShouldClose(window)) {
@@ -266,49 +228,32 @@ int main()
 
         ourShader.use();
 
-        glm::mat4 view;
-        view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+        // the camera class holds the matrices
+        glm::mat4 view = camera.GetViewMatrix();
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f));
-
-        const float radius = 10.0f;
-        float camX = sin(glfwGetTime()) * radius;
-        float camZ = cos(glfwGetTime()) * radius;
         
-        
-        projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-
-
         // pass to the shaders 
         // todo: currently we set the projection matrix each frame but since the projection matrix rarely changes its often best practice to set it outside the main loop only once
-        
-        ourShader.setMat4("model", model);
         ourShader.setMat4("view", view);
         ourShader.setMat4("projection", projection);
         
         glBindTexture(GL_TEXTURE_2D, texture);
         glBindVertexArray(VAO);
 
-
-
         // enable the below for 10 cubes, but makes them stop spinning
-
         for(unsigned int i = 0; i < 10; i++) {
-            
             glm::mat4 model = glm::mat4(1.0f);
             model = glm::translate(model, cubePositions[i]);
-            float angle = 20.0f * i; 
-            model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
-            ourShader.setMat4("model", model);
 
+            // added glfw get time so they spin continuously :3
+            float angle = 20.0f * i + glfwGetTime() * 50.0f; 
+            model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
+
+            ourShader.setMat4("model", model);
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
 
-
-
-        //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
         glBindVertexArray(0); // ? maybe add this back?
         
         //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // ! WIREFRAME MODE!
@@ -340,39 +285,15 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     }
 
     float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos;
+    float yoffset = lastY - ypos; // always reverse the y since it goes down
     lastX = xpos;
     lastY = ypos;
 
-    const float sensitivity = 0.1f;
-    xoffset *= sensitivity;
-    yoffset *= sensitivity;
-
-    yaw += xoffset;
-    pitch += yoffset;
-
-    // when pitch is out of bounds it doesnt get flipped
-    if (pitch > 89.0f) {
-        pitch = 89.0f;
-    }
-    if (pitch < -89.0f) {
-        pitch = -89.0f;
-    }
-
-    glm::vec3 direction;
-    direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    direction.y = sin(glm::radians(pitch));
-    direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    cameraFront = glm::normalize(direction);
+    // let the camera class handle the sensitivity and clamping
+    camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
-    fov -= (float)yoffset;
-    if (fov < 1.0f) {
-        fov = 1.0f;
-    }
-    if (fov > 45.0f) {
-        fov = 45.0f;
-    }
+    camera.ProcessMouseScroll(yoffset);
 }
